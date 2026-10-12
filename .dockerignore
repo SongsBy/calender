@@ -2,9 +2,8 @@
 **/__pycache__
 **/.venv
 backend/htmlcov
-frontend/blob-report
-frontend/dist
-frontend/node_modules
-frontend/playwright-report
-frontend/test-results
-node_modules
+frontend/build
+frontend/.dart_tool
+frontend/android
+frontend/ios
+frontend/macos

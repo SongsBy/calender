@@ -1,88 +1,68 @@
-# Full Stack FastAPI Template
+# FastAPI + Flutter Full Stack
 
-[![Test Docker Compose](../../actions/workflows/test-docker-compose.yml/badge.svg)](../../actions/workflows/test-docker-compose.yml)
-[![Test Backend](../../actions/workflows/test-backend.yml/badge.svg)](../../actions/workflows/test-backend.yml)
+FastAPI 백엔드와 Flutter 프론트엔드로 구성된 풀스택 프로젝트입니다.
 
-## Technology Stack and Features
+## 스택
 
-- ⚡ [**FastAPI**](https://fastapi.tiangolo.com) for the Python backend API.
-  - 🧰 [SQLModel](https://sqlmodel.tiangolo.com) for the Python SQL database interactions (ORM).
-  - 🔍 [Pydantic](https://docs.pydantic.dev), used by FastAPI, for the data validation and settings management.
-  - 💾 [PostgreSQL](https://www.postgresql.org) as the SQL database.
-- 🚀 [React](https://react.dev) for the frontend.
-  - 🧩 Built into the backend application and served by FastAPI on the same domain as the API.
-  - 💃 Using TypeScript, hooks, [Vite](https://vitejs.dev), and other parts of a modern frontend stack.
-  - 🎨 [Tailwind CSS](https://tailwindcss.com) and [shadcn/ui](https://ui.shadcn.com) for the frontend components.
-  - 🤖 An automatically generated frontend client.
-  - 🧪 [Playwright](https://playwright.dev) for end-to-end testing.
-  - 🦇 Dark mode support.
-- ☁️ [FastAPI Cloud](https://fastapicloud.com) for deployment.
-- 🐋 [Docker Compose](https://www.docker.com) for local services and self-hosted deployment.
-  - 📞 [Traefik](https://traefik.io) as a reverse proxy with automatic HTTPS.
-- 🔒 Secure password hashing by default.
-- 🔑 JWT (JSON Web Token) authentication.
-- 📫 Email-based password recovery.
-- ✉️ [React Email](https://react.email) for email templates.
-- 📬 [Mailpit](https://mailpit.axllent.org) for local email testing during development.
-- ✅ Tests with [Pytest](https://pytest.org).
-- 🏭 CI (continuous integration) and CD (continuous deployment) based on GitHub Actions.
+- **Backend**: FastAPI, SQLModel, PostgreSQL, Alembic, JWT 인증
+- **Frontend**: Flutter (Web / iOS / Android / macOS), go_router, Riverpod, dio
+- **Infra**: Docker Compose, Traefik, Mailpit, GitHub Actions
 
-### Dashboard Login
+## 구조
 
-![Dashboard login screenshot](img/login.png)
+```
+backend/   FastAPI 앱, 마이그레이션, 테스트
+frontend/  Flutter 앱
+compose*.yml  Docker Compose 설정
+```
 
-### Dashboard - Admin
+## 시작하기
 
-![Admin dashboard screenshot](img/dashboard.png)
+### 1. 환경 변수
 
-### Dashboard - Items
+루트의 `.env`에서 `SECRET_KEY`, `FIRST_SUPERUSER`, `FIRST_SUPERUSER_PASSWORD`, `POSTGRES_PASSWORD`를 수정합니다.
 
-![Items dashboard screenshot](img/dashboard-items.png)
+### 2. 백엔드
 
-### Dashboard - Dark Mode
+```bash
+docker compose up -d db mailpit
+cd backend
+uv sync
+uv run bash scripts/prestart.sh
+uv run fastapi dev
+```
 
-![Dark mode dashboard screenshot](img/dashboard-dark.png)
+API: http://localhost:8000 · 문서: http://localhost:8000/docs
 
-### React Email Templates
+### 3. 프론트엔드
 
-![Email templates screenshot](img/react-email.png)
+```bash
+cd frontend
+flutter pub get
+flutter run -d chrome --web-port 5173 --dart-define=API_URL=http://localhost:8000
+```
 
-### Mailpit - Local Email Testing
+### Docker로 한 번에 실행
 
-![Mailpit screenshot](img/mailpit.png)
+```bash
+docker compose run --rm backend bash scripts/prestart.sh
+docker compose up -d
+```
 
-### Interactive API Documentation
+Flutter 웹 빌드가 백엔드 이미지에 포함되어 http://localhost:8000 에서 함께 서빙됩니다.
 
-![API docs](img/docs.png)
+## 테스트
 
-## How to Use It
+```bash
+cd backend && uv run bash scripts/test.sh
+cd frontend && flutter test
+```
 
-Click the **Use this template** button at the top of this page to create a new repository.
+## 배포
 
-## Backend Development
+- FastAPI Cloud: [deployment.md](./deployment.md)
+- Docker Compose 자체 호스팅: [deployment-docker-compose.md](./deployment-docker-compose.md)
 
-Backend docs: [backend/README.md](./backend/README.md).
+## 라이선스
 
-## Frontend Development
-
-Frontend docs: [frontend/README.md](./frontend/README.md).
-
-## Deployment
-
-FastAPI Cloud deployment: [deployment.md](./deployment.md).
-
-Self-hosted deployment with Docker Compose: [deployment-docker-compose.md](./deployment-docker-compose.md).
-
-## Development
-
-General development docs: [development.md](./development.md).
-
-This includes the local FastAPI and Vite workflow, Docker Compose services, `.env` configuration, and more.
-
-## Release Notes
-
-Check the file [release-notes.md](./release-notes.md).
-
-## License
-
-The Full Stack FastAPI Template is licensed under the terms of the MIT license.
+MIT. 원본은 [fastapi/full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template)입니다.

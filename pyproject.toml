@@ -16,12 +16,12 @@ members = ["backend"]
 extend-exclude = [
     "img/",
     "uv.lock",
-    "bun.lock",
+    "frontend/pubspec.lock",
     "backend/coverage/",
     "backend/htmlcov/",
     "backend/app/frontend/",
-    "frontend/dist/",
-    "frontend/public/assets/images/",
+    "frontend/build/",
+    "frontend/assets/images/",
 ]
 
 [tool.typos.default]

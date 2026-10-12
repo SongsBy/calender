@@ -18,11 +18,17 @@
             "envFile": "${workspaceFolder}/.env",
         },
         {
-            "type": "chrome",
+            "name": "Debug Frontend: Flutter (Chrome)",
+            "type": "dart",
             "request": "launch",
-            "name": "Debug Frontend: Launch Chrome against http://localhost:5173",
-            "url": "http://localhost:5173",
-            "webRoot": "${workspaceFolder}/frontend"
+            "program": "lib/main.dart",
+            "cwd": "${workspaceFolder}/frontend",
+            "deviceId": "chrome",
+            "args": [
+                "--web-port",
+                "5173",
+                "--dart-define=API_URL=http://localhost:8000"
+            ]
         },
     ]
 }

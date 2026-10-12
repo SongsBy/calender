@@ -58,7 +58,7 @@ docker compose -f compose.yml -f compose.deploy.yml up -d
 
 The `compose.deploy.yml` file adds HTTPS and automatic certificate handling to the shared `compose.yml` configuration. Explicitly listing both files excludes the local settings from `compose.override.yml`.
 
-The backend Docker image builds the frontend, so the server does not need Bun or prebuilt frontend files.
+The backend Docker image builds the Flutter web frontend, so the server does not need the Flutter SDK or prebuilt frontend files.
 
 ## Deploy with GitHub Actions
 

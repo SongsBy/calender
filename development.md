@@ -2,7 +2,7 @@
 
 ## Local Development
 
-For local development, run PostgreSQL and Mailpit with Docker Compose, and run the FastAPI and Vite development servers locally.
+For local development, run PostgreSQL and Mailpit with Docker Compose, and run the FastAPI and Flutter development servers locally.
 
 Start the supporting services:
 
@@ -23,12 +23,15 @@ Start the FastAPI development server:
 uv run fastapi dev
 ```
 
-In another terminal, from the project root, install the frontend dependencies and start the Vite development server:
+In another terminal, from the `frontend` directory, install the Flutter dependencies and start the app in Chrome:
 
 ```bash
-bun install
-bun run dev
+cd frontend
+flutter pub get
+flutter run -d chrome --web-port 5173 --dart-define=API_URL=http://localhost:8000
 ```
+
+To run on an iOS simulator or Android emulator instead, drop `-d chrome` and `--web-port` (on Android, use `http://10.0.2.2:8000` as the API URL).
 
 Now you can open these URLs:
 
@@ -40,14 +43,14 @@ Automatic interactive API documentation with Swagger UI: <http://localhost:8000/
 
 Mailpit: <http://localhost:8025>
 
-The frontend development server uses the backend at `http://localhost:8000`, as configured in `frontend/.env`.
+The frontend uses the backend at `http://localhost:8000`, passed with `--dart-define=API_URL=...`. Port 5173 matches the backend's default `FRONTEND_HOST`, which is used for CORS and for links in emails.
 
 ### Frontend Served by FastAPI
 
 Build the frontend from the `frontend` directory:
 
 ```bash
-bun run build
+flutter build web --release --dart-define=API_URL= --output ../backend/app/frontend
 ```
 
 The build is written to `backend/app/frontend` and served by FastAPI at <http://localhost:8000>. Rebuild the frontend after making frontend changes.

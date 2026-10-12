@@ -70,7 +70,7 @@ Use the same values configured in FastAPI Cloud. For `DATABASE_URL`, use the con
 
 The deployment workflow performs these steps:
 
-1. Installs and builds the frontend into `backend/app/frontend`.
+1. Installs Flutter and builds the frontend web app into `backend/app/frontend`.
 2. Runs `backend/scripts/prestart.sh` to apply database migrations and create the first superuser.
 3. Deploys the project with `uv run fastapi deploy`.
 

@@ -1,19 +1,17 @@
-FROM oven/bun:1 AS frontend-build
-
-WORKDIR /app
-
-COPY package.json bun.lock /app/
-COPY frontend/package.json /app/frontend/
+FROM ghcr.io/cirruslabs/flutter:3.38.7 AS frontend-build
 
 WORKDIR /app/frontend
 
-RUN bun install
+COPY frontend/pubspec.yaml frontend/pubspec.lock /app/frontend/
+
+RUN flutter pub get
 
 COPY ./frontend /app/frontend
 
-ARG VITE_API_URL=
+# Empty API_URL makes the web app call the same origin it is served from
+ARG API_URL=
 
-RUN bun run build
+RUN flutter build web --release --dart-define=API_URL=${API_URL} --output /app/backend/app/frontend
 
 
 FROM python:3.14
