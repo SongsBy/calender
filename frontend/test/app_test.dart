@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<Widget> buildApp({Map<String, Object> prefs = const {}}) async {
   SharedPreferences.setMockInitialValues(prefs);
-  final storage = await AppStorage.create();
+  final storage = await AppStorage.create(persistSession: false);
   return ProviderScope(
     overrides: [storageProvider.overrideWithValue(storage)],
     child: const App(),
@@ -28,8 +28,10 @@ void main() {
 
     test('password', () {
       expect(Validators.password(''), 'Password is required');
-      expect(Validators.password('short'),
-          'Password must be at least 8 characters');
+      expect(
+        Validators.password('short'),
+        'Password must be at least 8 characters',
+      );
       expect(Validators.password('longenough'), isNull);
     });
 
@@ -62,8 +64,11 @@ void main() {
           statusCode: 422,
           data: {
             'detail': [
-              {'loc': ['body', 'email'], 'msg': 'value is not a valid email'}
-            ]
+              {
+                'loc': ['body', 'email'],
+                'msg': 'value is not a valid email',
+              },
+            ],
           },
         ),
       );
@@ -88,7 +93,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Log In'));
       await tester.pumpAndSettle();
-      expect(find.text('Invalid email address'), findsOneWidget);
+      expect(find.text('Required'), findsOneWidget);
       expect(find.text('Password is required'), findsOneWidget);
     });
 

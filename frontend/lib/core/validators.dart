@@ -12,9 +12,18 @@ class Validators {
     return null;
   }
 
+  static String? username(String? value) {
+    final v = value?.trim().toLowerCase() ?? '';
+    if (!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(v) || v.startsWith('legacy_')) {
+      return 'Use 3–30 letters, numbers or underscores (legacy_ is reserved)';
+    }
+    return null;
+  }
+
   static String? password(String? value) {
     final v = value ?? '';
     if (v.isEmpty) return 'Password is required';
+    if (v.length > 128) return 'Password must be at most 128 characters';
     if (v.length < 8) return 'Password must be at least 8 characters';
     return null;
   }

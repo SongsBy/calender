@@ -2,6 +2,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, delete, func, select
 
 from app import crud
@@ -24,9 +25,19 @@ from app.models import (
     UserUpdate,
     UserUpdateMe,
 )
+from app.services.auth import lock_user, revoke_user_sessions
+from app.services.calendars import commit_user_deletion, ensure_user_can_be_deleted
 from app.utils import generate_new_account_email, send_email
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+def create_unique_user(session: SessionDep, user_in: UserCreate) -> User:
+    try:
+        return crud.create_user(session=session, user_create=user_in)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="Username or email already exists")
 
 
 @router.get(
@@ -58,17 +69,21 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
     """
     Create new user.
     """
-    user = crud.get_user_by_email(session=session, email=user_in.email)
+    user = (
+        crud.get_user_by_email(session=session, email=user_in.email)
+        if user_in.email
+        else None
+    )
     if user:
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="The user with this email already exists in the system.",
         )
 
-    user = crud.create_user(session=session, user_create=user_in)
+    user = create_unique_user(session, user_in)
     if settings.emails_enabled and user_in.email:
         email_data = generate_new_account_email(
-            email_to=user_in.email, username=user_in.email, password=user_in.password
+            email_to=user_in.email, username=user.username
         )
         send_email(
             email_to=user_in.email,
@@ -107,6 +122,7 @@ def update_password_me(
     """
     Update own password.
     """
+    current_user = lock_user(session, current_user.id)
     verified, _ = verify_password(body.current_password, current_user.hashed_password)
     if not verified:
         raise HTTPException(status_code=400, detail="Incorrect password")
@@ -115,6 +131,7 @@ def update_password_me(
             status_code=400, detail="New password cannot be the same as the current one"
         )
     hashed_password = get_password_hash(body.new_password)
+    revoke_user_sessions(session, current_user.id)
     current_user.hashed_password = hashed_password
     session.add(current_user)
     session.commit()
@@ -138,24 +155,29 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
+    ensure_user_can_be_deleted(session, current_user.id)
     session.delete(current_user)
-    session.commit()
+    commit_user_deletion(session)
     return Message(message="User deleted successfully")
 
 
-@router.post("/signup", response_model=UserPublic)
+@router.post("/signup", response_model=UserPublic, status_code=201)
 def register_user(session: SessionDep, user_in: UserRegister) -> Any:
     """
     Create new user without the need to be logged in.
     """
-    user = crud.get_user_by_email(session=session, email=user_in.email)
+    user = (
+        crud.get_user_by_email(session=session, email=user_in.email)
+        if user_in.email
+        else None
+    )
     if user:
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="The user with this email already exists in the system",
         )
     user_create = UserCreate.model_validate(user_in)
-    user = crud.create_user(session=session, user_create=user_create)
+    user = create_unique_user(session, user_create)
     return user
 
 
@@ -225,8 +247,9 @@ def delete_user(
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
+    ensure_user_can_be_deleted(session, user_id)
     statement = delete(Item).where(col(Item.owner_id) == user_id)
     session.exec(statement)
     session.delete(user)
-    session.commit()
+    commit_user_deletion(session)
     return Message(message="User deleted successfully")

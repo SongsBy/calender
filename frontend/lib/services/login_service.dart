@@ -18,15 +18,23 @@ class LoginService {
     final response = await _dio.post<Map<String, dynamic>>(
       '$_p/login/access-token',
       data: {'username': username, 'password': password},
-      options: Options(contentType: Headers.formUrlEncodedContentType),
+      options: Options(
+        contentType: Headers.formUrlEncodedContentType,
+        extra: {'public': true},
+      ),
     );
     return Token.fromJson(response.data!);
   }
 
+  Future<void> logout() async {
+    await _dio.post<void>('$_p/login/logout');
+  }
+
   /// POST /login/test-token
   Future<UserPublic> testToken() async {
-    final response =
-        await _dio.post<Map<String, dynamic>>('$_p/login/test-token');
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_p/login/test-token',
+    );
     return UserPublic.fromJson(response.data!);
   }
 
@@ -34,6 +42,7 @@ class LoginService {
   Future<Message> recoverPassword(String email) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '$_p/password-recovery/${Uri.encodeComponent(email)}',
+      options: Options(extra: {'public': true}),
     );
     return Message.fromJson(response.data!);
   }
@@ -43,6 +52,7 @@ class LoginService {
     final response = await _dio.post<Map<String, dynamic>>(
       '$_p/reset-password/',
       data: body.toJson(),
+      options: Options(extra: {'public': true}),
     );
     return Message.fromJson(response.data!);
   }

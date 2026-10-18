@@ -1,3 +1,4 @@
+import 'edge_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,9 +22,39 @@ class _NavItem {
 
 const _baseItems = [
   _NavItem(Icons.home_outlined, 'Dashboard', Routes.dashboard),
+  _NavItem(Icons.calendar_month_outlined, '공유 캘린더', Routes.calendars),
   _NavItem(Icons.work_outline, 'Items', Routes.items),
 ];
 const _adminItem = _NavItem(Icons.people_outline, 'Admin', Routes.admin);
+
+/// Scroll the page inside the bounded shell Navigator, not the Navigator itself.
+class AppPage extends StatelessWidget {
+  const AppPage({super.key, required this.child, this.onRefresh});
+  final Future<void> Function()? onRefresh;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) {
+    final scroll = SingleChildScrollView(
+      physics: onRefresh == null
+          ? null
+          : const AlwaysScrollableScrollPhysics(
+              parent: ClampingScrollPhysics(),
+            ),
+      padding: EdgeInsets.all(
+        MediaQuery.sizeOf(context).width >= _desktopBreakpoint ? 32 : 20,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: child,
+        ),
+      ),
+    );
+    return onRefresh == null
+        ? scroll
+        : EdgeRefresh(onRefresh: onRefresh!, child: scroll);
+  }
+}
 
 /// Authenticated layout: sidebar on desktop, drawer on smaller screens.
 class AppShell extends ConsumerWidget {
@@ -37,17 +68,7 @@ class AppShell extends ConsumerWidget {
 
     final content = Column(
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(isDesktop ? 32 : 20),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1280),
-                child: child,
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: child),
         const AppFooter(),
       ],
     );
@@ -89,10 +110,7 @@ class _Sidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final location = GoRouterState.of(context).uri.path;
-    final items = [
-      ..._baseItems,
-      if (user?.isSuperuser ?? false) _adminItem,
-    ];
+    final items = [..._baseItems, if (user?.isSuperuser ?? false) _adminItem];
     final theme = Theme.of(context);
 
     return Container(
@@ -158,9 +176,9 @@ class _UserInfo extends StatelessWidget {
           radius: 16,
           backgroundColor: const Color(0xFF52525B),
           child: Text(
-            getInitials(user.fullName?.isNotEmpty == true
-                ? user.fullName!
-                : 'User'),
+            getInitials(
+              user.fullName?.isNotEmpty == true ? user.fullName! : 'User',
+            ),
             style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
         ),
@@ -173,15 +191,17 @@ class _UserInfo extends StatelessWidget {
                 user.fullName ?? '',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w500),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               Text(
-                user.email,
+                user.email ?? user.username,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

@@ -1,15 +1,25 @@
-from datetime import timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app import crud
-from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
-from app.core import security
-from app.core.config import settings
-from app.models import Message, NewPassword, Token, UserPublic, UserUpdate
+from app.api.deps import (
+    CurrentUser,
+    SessionDep,
+    TokenPayloadDep,
+    get_current_active_superuser,
+)
+from app.models import (
+    Message,
+    NewPassword,
+    RefreshRequest,
+    Token,
+    UserPublic,
+    UserUpdate,
+)
+from app.services.auth import issue_tokens, revoke_family, rotate_tokens, unauthorized
 from app.utils import (
     generate_password_reset_token,
     generate_reset_password_email,
@@ -30,16 +40,22 @@ def login_access_token(
     user = crud.authenticate(
         session=session, email=form_data.username, password=form_data.password
     )
-    if not user:
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-    elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return Token(
-        access_token=security.create_access_token(
-            user.id, expires_delta=access_token_expires
-        )
-    )
+    if not user or not user.is_active:
+        raise unauthorized()
+    return issue_tokens(session, user)
+
+
+@router.post("/login/refresh")
+def refresh_access_token(session: SessionDep, body: RefreshRequest) -> Token:
+    return rotate_tokens(session, body.refresh_token)
+
+
+@router.post("/login/logout", status_code=204)
+def logout(
+    session: SessionDep, current_user: CurrentUser, payload: TokenPayloadDep
+) -> Response:
+    revoke_family(session, current_user.id, payload.sid)
+    return Response(status_code=204)
 
 
 @router.post("/login/test-token", response_model=UserPublic)
@@ -59,7 +75,7 @@ def recover_password(email: str, session: SessionDep) -> Message:
 
     # Always return the same response to prevent email enumeration attacks
     # Only send email if user actually exists
-    if user:
+    if user and user.email:
         password_reset_token = generate_password_reset_token(email=email)
         email_data = generate_reset_password_email(
             email_to=user.email, email=email, token=password_reset_token
@@ -108,7 +124,7 @@ def recover_password_html_content(email: str, session: SessionDep) -> Any:
     """
     user = crud.get_user_by_email(session=session, email=email)
 
-    if not user:
+    if not user or not user.email:
         raise HTTPException(
             status_code=404,
             detail="The user with this username does not exist in the system.",

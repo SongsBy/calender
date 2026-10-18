@@ -19,13 +19,13 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
+  final _username = TextEditingController();
   final _password = TextEditingController();
   bool _pending = false;
 
   @override
   void dispose() {
-    _email.dispose();
+    _username.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -34,10 +34,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (_pending || !_formKey.currentState!.validate()) return;
     setState(() => _pending = true);
     try {
-      await ref.read(authProvider.notifier).login(
-            email: _email.text.trim(),
-            password: _password.text,
-          );
+      await ref
+          .read(authProvider.notifier)
+          .login(username: _username.text.trim(), password: _password.text);
       // Router redirect sends us to the dashboard once isLoggedIn flips.
     } catch (e) {
       Toast.error(extractErrorMessage(e));
@@ -56,15 +55,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           children: [
             const AuthTitle('Login to your account'),
             const SizedBox(height: 24),
-            const FieldLabel('Email'),
+            const FieldLabel('Username or existing email'),
             TextFormField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              autofillHints: const [AutofillHints.email],
+              controller: _username,
+              keyboardType: TextInputType.text,
+              autofillHints: const [AutofillHints.username],
               textInputAction: TextInputAction.next,
               autovalidateMode: AutovalidateMode.onUnfocus,
-              validator: Validators.email,
-              decoration: const InputDecoration(hintText: 'user@example.com'),
+              validator: Validators.required,
+              decoration: const InputDecoration(hintText: 'user_one'),
             ),
             const SizedBox(height: 16),
             Row(

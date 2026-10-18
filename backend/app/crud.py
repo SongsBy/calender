@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
 from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+from app.services.auth import lock_user, revoke_user_sessions
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -18,7 +19,10 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
 
 
 def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
+    db_user = lock_user(session, db_user.id)
     user_data = user_in.model_dump(exclude_unset=True)
+    if user_data.get("password") or user_data.get("is_active") is False:
+        revoke_user_sessions(session, db_user.id)
     extra_data = {}
     if "password" in user_data:
         password = user_data["password"]
@@ -42,8 +46,22 @@ def get_user_by_email(*, session: Session, email: str) -> User | None:
 DUMMY_HASH = "$argon2id$v=19$m=65536,t=3,p=4$MjQyZWE1MzBjYjJlZTI0Yw$YTU4NGM5ZTZmYjE2NzZlZjY0ZWY3ZGRkY2U2OWFjNjk"
 
 
+def get_user_by_username(*, session: Session, username: str) -> User | None:
+    return session.exec(
+        select(User).where(User.username == username.strip().lower())
+    ).first()
+
+
 def authenticate(*, session: Session, email: str, password: str) -> User | None:
-    db_user = get_user_by_email(session=session, email=email)
+    # Keep the internal parameter for existing callers; it now accepts either identifier.
+    identifier = email.strip()
+    db_user = (
+        get_user_by_email(session=session, email=identifier)
+        if "@" in identifier
+        else get_user_by_username(session=session, username=identifier)
+    )
+    if db_user:
+        db_user = lock_user(session, db_user.id)
     if not db_user:
         # Prevent timing attacks by running password verification even when user doesn't exist
         # This ensures the response time is similar whether or not the email exists
@@ -55,8 +73,7 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
     if updated_password_hash:
         db_user.hashed_password = updated_password_hash
         session.add(db_user)
-        session.commit()
-        session.refresh(db_user)
+        session.flush()
     return db_user
 
 

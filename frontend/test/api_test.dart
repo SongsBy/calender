@@ -16,6 +16,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class FakeBackend {
   late HttpServer _server;
   final List<HttpRequest> requests = [];
+  int refreshCalls = 0;
+  bool rejectRefresh = false;
+  bool rejectRetried = false;
 
   String get baseUrl => 'http://127.0.0.1:${_server.port}';
 
@@ -49,7 +52,18 @@ class FakeBackend {
       return json(400, {'detail': 'Incorrect email or password'});
     }
 
-    if (auth != 'Bearer tok123') {
+    if (path == '/api/v1/login/refresh') {
+      refreshCalls++;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (rejectRefresh) return json(401, {'detail': 'Expired refresh'});
+      return json(200, {
+        'access_token': 'tok123',
+        'refresh_token': 'rotated',
+        'expires_in': 900,
+      });
+    }
+    if (path == '/api/v1/forbidden') return json(403, {'detail': 'Forbidden'});
+    if (auth != 'Bearer tok123' || rejectRetried) {
       return json(401, {'detail': 'Not authenticated'});
     }
 
@@ -92,7 +106,7 @@ void main() {
     backend = FakeBackend();
     await backend.start();
     SharedPreferences.setMockInitialValues({});
-    storage = await AppStorage.create();
+    storage = await AppStorage.create(persistSession: false);
     unauthorizedCalls = 0;
   });
 
@@ -115,16 +129,18 @@ void main() {
     expect(unauthorizedCalls, 0);
   });
 
-  test('wrong password surfaces the FastAPI detail and does not log out',
-      () async {
-    final dio = createApiClient(storage, () => unauthorizedCalls++)
-      ..options.baseUrl = backend.baseUrl;
-    await expectLater(
-      LoginService(dio).loginAccessToken(username: 'x@y.z', password: 'bad'),
-      throwsA(isA<Exception>()),
-    );
-    expect(unauthorizedCalls, 0);
-  });
+  test(
+    'wrong password surfaces the FastAPI detail and does not log out',
+    () async {
+      final dio = createApiClient(storage, () => unauthorizedCalls++)
+        ..options.baseUrl = backend.baseUrl;
+      await expectLater(
+        LoginService(dio).loginAccessToken(username: 'x@y.z', password: 'bad'),
+        throwsA(isA<Exception>()),
+      );
+      expect(unauthorizedCalls, 0);
+    },
+  );
 
   test('authenticated calls send the Bearer header', () async {
     await storage.setAccessToken('tok123');
@@ -139,8 +155,9 @@ void main() {
     expect(items.count, 1);
     expect(items.data.single.title, 'First');
 
-    final created = await ItemsService(dio)
-        .createItem(const ItemCreate(title: 'New', description: 'desc'));
+    final created = await ItemsService(
+      dio,
+    ).createItem(const ItemCreate(title: 'New', description: 'desc'));
     expect(created.id, 'i2');
     expect(created.description, 'desc');
   });
@@ -152,5 +169,85 @@ void main() {
 
     await expectLater(UsersService(dio).readUserMe(), throwsA(anything));
     expect(unauthorizedCalls, 1);
+  });
+  test(
+    'concurrent 401s share one refresh and retry with rotated tokens',
+    () async {
+      await storage.setTokens(
+        const Token(accessToken: 'expired', refreshToken: 'original'),
+      );
+      final dio = createApiClient(storage, () => unauthorizedCalls++)
+        ..options.baseUrl = backend.baseUrl;
+      final results = await Future.wait(
+        List.generate(5, (_) => UsersService(dio).readUserMe()),
+      );
+      expect(results.length, 5);
+      expect(backend.refreshCalls, 1);
+      expect(storage.refreshToken, 'rotated');
+      expect(unauthorizedCalls, 0);
+    },
+  );
+
+  test('403 neither refreshes nor clears the session', () async {
+    await storage.setTokens(
+      const Token(accessToken: 'tok123', refreshToken: 'original'),
+    );
+    final dio = createApiClient(storage, () => unauthorizedCalls++)
+      ..options.baseUrl = backend.baseUrl;
+    await expectLater(dio.get('/api/v1/forbidden'), throwsA(anything));
+    expect(backend.refreshCalls, 0);
+    expect(storage.isLoggedIn, isTrue);
+    expect(unauthorizedCalls, 0);
+  });
+
+  test(
+    'failed refresh clears the session once for concurrent errors',
+    () async {
+      backend.rejectRefresh = true;
+      await storage.setTokens(
+        const Token(accessToken: 'expired', refreshToken: 'original'),
+      );
+      final dio = createApiClient(storage, () => unauthorizedCalls++)
+        ..options.baseUrl = backend.baseUrl;
+      await Future.wait(
+        List.generate(3, (_) async {
+          await expectLater(UsersService(dio).readUserMe(), throwsA(anything));
+        }),
+      );
+      expect(backend.refreshCalls, 1);
+      expect(storage.isLoggedIn, isFalse);
+      expect(unauthorizedCalls, 1);
+    },
+  );
+
+  test('retried 401 stops without a refresh loop', () async {
+    backend.rejectRetried = true;
+    await storage.setTokens(
+      const Token(accessToken: 'expired', refreshToken: 'original'),
+    );
+    final dio = createApiClient(storage, () => unauthorizedCalls++)
+      ..options.baseUrl = backend.baseUrl;
+    await expectLater(UsersService(dio).readUserMe(), throwsA(anything));
+    expect(backend.refreshCalls, 1);
+    expect(storage.isLoggedIn, isFalse);
+  });
+
+  test('logout during refresh cannot restore the previous session', () async {
+    await storage.setTokens(
+      const Token(accessToken: 'expired', refreshToken: 'original'),
+    );
+    final dio = createApiClient(storage, () => unauthorizedCalls++)
+      ..options.baseUrl = backend.baseUrl;
+    final request = expectLater(
+      UsersService(dio).readUserMe(),
+      throwsA(anything),
+    );
+    while (backend.refreshCalls == 0) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+    await storage.clearAccessToken();
+    await request;
+    expect(storage.isLoggedIn, isFalse);
+    expect(storage.refreshToken, isNull);
   });
 }

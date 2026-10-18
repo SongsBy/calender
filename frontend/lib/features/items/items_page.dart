@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,21 +29,89 @@ class ItemsPage extends ConsumerWidget {
             label: const Text('Add Item'),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        const _SearchField(),
+        const SizedBox(height: 16),
         switch (items) {
-          AsyncData(:final value) when value.isEmpty => const EmptyState(
-              icon: Icons.search,
-              title: "You don't have any items yet",
-              subtitle: 'Add a new item to get started',
+          AsyncData(:final value)
+              when value.isEmpty && ref.watch(itemsSearchProvider).isNotEmpty =>
+            const EmptyState(
+              icon: Icons.search_off,
+              title: 'No items match your search',
+              subtitle: 'Try a different keyword',
             ),
+          AsyncData(:final value) when value.isEmpty => const EmptyState(
+            icon: Icons.search,
+            title: "You don't have any items yet",
+            subtitle: 'Add a new item to get started',
+          ),
           AsyncData(:final value) => _ItemsTable(items: value),
           AsyncError(:final error) => _ErrorBox(
-              message: extractErrorMessage(error),
-              onRetry: () => ref.invalidate(itemsProvider),
-            ),
+            message: extractErrorMessage(error),
+            onRetry: () => ref.invalidate(itemsProvider),
+          ),
           _ => const PendingTable(columns: 4),
         },
       ],
+    );
+  }
+}
+
+/// Search box. Debounced so we don't hit the API on every keystroke.
+class _SearchField extends ConsumerStatefulWidget {
+  const _SearchField();
+
+  @override
+  ConsumerState<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends ConsumerState<_SearchField> {
+  late final _controller = TextEditingController(
+    text: ref.read(itemsSearchProvider),
+  );
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(itemsSearchProvider.notifier).set(value);
+    });
+  }
+
+  void _clear() {
+    _debounce?.cancel();
+    _controller.clear();
+    ref.read(itemsSearchProvider.notifier).set('');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasText = ref.watch(itemsSearchProvider).isNotEmpty;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: TextField(
+        controller: _controller,
+        onChanged: _onChanged,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Search items...',
+          prefixIcon: const Icon(Icons.search, size: 18),
+          suffixIcon: hasText
+              ? IconButton(
+                  tooltip: 'Clear',
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: _clear,
+                )
+              : null,
+        ),
+      ),
     );
   }
 }
@@ -147,11 +217,7 @@ class _CopyIdState extends State<_CopyId> {
       children: [
         Text(
           widget.id,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 12,
-            color: muted,
-          ),
+          style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: muted),
         ),
         const SizedBox(width: 4),
         IconButton(

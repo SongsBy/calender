@@ -1,14 +1,23 @@
 /// `Token`
 class Token {
-  const Token({required this.accessToken, this.tokenType = 'bearer'});
+  const Token({
+    required this.accessToken,
+    this.tokenType = 'bearer',
+    this.refreshToken,
+    this.expiresIn = 900,
+  });
 
   final String accessToken;
   final String tokenType;
+  final String? refreshToken;
+  final int expiresIn;
 
   factory Token.fromJson(Map<String, dynamic> json) => Token(
-        accessToken: json['access_token'] as String,
-        tokenType: json['token_type'] as String? ?? 'bearer',
-      );
+    accessToken: json['access_token'] as String,
+    refreshToken: json['refresh_token'] as String?,
+    expiresIn: json['expires_in'] as int? ?? 900,
+    tokenType: json['token_type'] as String? ?? 'bearer',
+  );
 }
 
 /// `Message`
@@ -29,7 +38,7 @@ class NewPassword {
   final String newPassword;
 
   Map<String, dynamic> toJson() => {
-        'token': token,
-        'new_password': newPassword,
-      };
+    'token': token,
+    'new_password': newPassword,
+  };
 }

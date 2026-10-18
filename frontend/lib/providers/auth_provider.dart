@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/models.dart';
+import '../core/toast.dart';
 import 'app_providers.dart';
 
 /// Session state. `user` is null until `/users/me` has been fetched.
@@ -20,12 +21,11 @@ class AuthState {
     UserPublic? user,
     bool clearUser = false,
     bool? isLoadingUser,
-  }) =>
-      AuthState(
-        isLoggedIn: isLoggedIn ?? this.isLoggedIn,
-        user: clearUser ? null : (user ?? this.user),
-        isLoadingUser: isLoadingUser ?? this.isLoadingUser,
-      );
+  }) => AuthState(
+    isLoggedIn: isLoggedIn ?? this.isLoggedIn,
+    user: clearUser ? null : (user ?? this.user),
+    isLoadingUser: isLoadingUser ?? this.isLoadingUser,
+  );
 }
 
 /// Session controller: login, sign up, logout and the current user.
@@ -49,17 +49,20 @@ class AuthNotifier extends Notifier<AuthState> {
       if (!state.isLoggedIn) return; // logged out while fetching
       state = state.copyWith(user: user, isLoadingUser: false);
     } catch (_) {
-      // 401/403 are handled by the Dio interceptor (logout). Anything else
+      // 401 are handled by the Dio interceptor (logout). Anything else
       // just leaves `user` empty; pages render with what they have.
       state = state.copyWith(isLoadingUser: false);
     }
   }
 
-  Future<void> login({required String email, required String password}) async {
+  Future<void> login({
+    required String username,
+    required String password,
+  }) async {
     final token = await ref
         .read(loginServiceProvider)
-        .loginAccessToken(username: email, password: password);
-    await ref.read(storageProvider).setAccessToken(token.accessToken);
+        .loginAccessToken(username: username, password: password);
+    await ref.read(storageProvider).setTokens(token);
     state = const AuthState(isLoggedIn: true, isLoadingUser: true);
     await refreshUser();
   }
@@ -69,6 +72,18 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    try {
+      await ref.read(loginServiceProvider).logout();
+    } catch (_) {
+      Toast.error(
+        'Signed out on this device. Server logout could not be confirmed.',
+      );
+    } finally {
+      await expireSession();
+    }
+  }
+
+  Future<void> expireSession() async {
     await ref.read(storageProvider).clearAccessToken();
     state = const AuthState(isLoggedIn: false);
   }
@@ -83,5 +98,6 @@ final authProvider = NotifierProvider<AuthNotifier, AuthState>(
   AuthNotifier.new,
 );
 
-final currentUserProvider =
-    Provider<UserPublic?>((ref) => ref.watch(authProvider).user);
+final currentUserProvider = Provider<UserPublic?>(
+  (ref) => ref.watch(authProvider).user,
+);

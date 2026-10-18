@@ -1,6 +1,10 @@
-# FastAPI + Flutter Full Stack
+# 두 사람의 공유 캘린더
 
-FastAPI 백엔드와 Flutter 프론트엔드로 구성된 풀스택 프로젝트입니다.
+FastAPI와 Flutter로 만든 두 사람의 공유 캘린더입니다. 회원가입·토큰 인증, 초대코드, 공유 일정, Android 일정 가져오기, 캘린더 나가기·삭제 및 자동 갱신을 구현했습니다.
+
+처음 내려받은 뒤 루트에서 `cp .env.example .env`로 로컬 설정을 준비하세요. 운영 비밀번호는 Git에 올리지 않고 배포 서비스의 환경변수로 설정합니다.
+
+배포 예정 구성은 Render(FastAPI) + Supabase(PostgreSQL)입니다. 아직 운영 배포는 완료되지 않았으며, 기존 FastAPI Cloud 워크플로는 수동 실행만 가능합니다.
 
 ## 스택
 

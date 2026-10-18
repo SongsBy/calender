@@ -18,15 +18,18 @@ final dioProvider = Provider<Dio>((ref) {
   return createApiClient(storage, () {
     // Runs at request time, never during a provider build, so this does not
     // create a circular dependency with authProvider.
-    ref.read(authProvider.notifier).logout();
+    ref.read(authProvider.notifier).expireSession();
   });
 });
 
-final loginServiceProvider =
-    Provider<LoginService>((ref) => LoginService(ref.watch(dioProvider)));
+final loginServiceProvider = Provider<LoginService>(
+  (ref) => LoginService(ref.watch(dioProvider)),
+);
 
-final usersServiceProvider =
-    Provider<UsersService>((ref) => UsersService(ref.watch(dioProvider)));
+final usersServiceProvider = Provider<UsersService>(
+  (ref) => UsersService(ref.watch(dioProvider)),
+);
 
-final itemsServiceProvider =
-    Provider<ItemsService>((ref) => ItemsService(ref.watch(dioProvider)));
+final itemsServiceProvider = Provider<ItemsService>(
+  (ref) => ItemsService(ref.watch(dioProvider)),
+);

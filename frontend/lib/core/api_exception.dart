@@ -13,6 +13,9 @@ String extractErrorMessage(Object error) {
           return first['msg'] as String;
         }
       }
+      if (detail is Map && detail['message'] is String) {
+        return detail['message'] as String;
+      }
       if (detail is String) {
         return detail;
       }

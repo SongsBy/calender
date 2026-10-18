@@ -79,6 +79,53 @@ def test_read_items(
     assert len(content["data"]) >= 2
 
 
+def test_search_items(
+    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+) -> None:
+    create_random_item(db)
+    unique = f"needle-{uuid.uuid4().hex[:8]}"
+    item = create_random_item(db)
+    item.title = f"Buy {unique} today"
+    db.add(item)
+    db.commit()
+
+    response = client.get(
+        f"{settings.API_V1_STR}/items/",
+        headers=superuser_token_headers,
+        params={"q": unique.upper()},  # case-insensitive
+    )
+    assert response.status_code == 200
+    content = response.json()
+    assert content["count"] == 1
+    assert content["data"][0]["id"] == str(item.id)
+
+    response = client.get(
+        f"{settings.API_V1_STR}/items/",
+        headers=superuser_token_headers,
+        params={"q": "no-such-item-xyz"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"data": [], "count": 0}
+
+
+def test_search_items_only_own_items(
+    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
+) -> None:
+    unique = f"needle-{uuid.uuid4().hex[:8]}"
+    other_users_item = create_random_item(db)
+    other_users_item.title = f"Secret {unique}"
+    db.add(other_users_item)
+    db.commit()
+
+    response = client.get(
+        f"{settings.API_V1_STR}/items/",
+        headers=normal_user_token_headers,
+        params={"q": unique},
+    )
+    assert response.status_code == 200
+    assert response.json()["count"] == 0
+
+
 def test_update_item(
     client: TestClient, superuser_token_headers: dict[str, str], db: Session
 ) -> None:

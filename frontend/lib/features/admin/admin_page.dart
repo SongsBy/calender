@@ -47,15 +47,15 @@ class AdminPage extends ConsumerWidget {
         switch (users) {
           AsyncData(:final value) => _UsersTable(users: value, me: me),
           AsyncError(:final error) => Column(
-              children: [
-                Text(extractErrorMessage(error)),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: () => ref.invalidate(usersProvider),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
+            children: [
+              Text(extractErrorMessage(error)),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () => ref.invalidate(usersProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
           _ => const PendingTable(columns: 4),
         },
       ],
@@ -112,13 +112,15 @@ class _UsersTable extends StatelessWidget {
                             ),
                             if (user.id == me.id) ...[
                               const SizedBox(width: 8),
-                              const StatusBadge('You',
-                                  variant: BadgeVariant.outline),
+                              const StatusBadge(
+                                'You',
+                                variant: BadgeVariant.outline,
+                              ),
                             ],
                           ],
                         ),
                       ),
-                      DataCell(Text(user.email)),
+                      DataCell(Text(user.email ?? user.username)),
                       DataCell(
                         StatusBadge(
                           user.isSuperuser ? 'Superuser' : 'User',

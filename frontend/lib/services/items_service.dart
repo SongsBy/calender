@@ -10,11 +10,19 @@ class ItemsService {
   final Dio _dio;
   static const _p = AppConfig.apiPrefix;
 
-  /// GET /items/
-  Future<ItemsPublic> readItems({int skip = 0, int limit = 100}) async {
+  /// GET /items/  (`q` searches title and description, case-insensitive)
+  Future<ItemsPublic> readItems({
+    int skip = 0,
+    int limit = 100,
+    String? q,
+  }) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_p/items/',
-      queryParameters: {'skip': skip, 'limit': limit},
+      queryParameters: {
+        'skip': skip,
+        'limit': limit,
+        if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+      },
     );
     return ItemsPublic.fromJson(response.data!);
   }
@@ -45,8 +53,7 @@ class ItemsService {
 
   /// DELETE /items/{id}
   Future<Message> deleteItem(String id) async {
-    final response =
-        await _dio.delete<Map<String, dynamic>>('$_p/items/$id');
+    final response = await _dio.delete<Map<String, dynamic>>('$_p/items/$id');
     return Message.fromJson(response.data!);
   }
 }

@@ -1,3 +1,11 @@
 .vscode/*
 !.vscode/extensions.json
 backend/app/frontend/
+
+# Local secrets and database backups
+.env
+.env.*
+!.env.example
+*.dump
+*.jks
+*.keystore

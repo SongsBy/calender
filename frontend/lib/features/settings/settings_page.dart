@@ -80,8 +80,9 @@ class _UserInformation extends ConsumerStatefulWidget {
 
 class _UserInformationState extends ConsumerState<_UserInformation> {
   final _formKey = GlobalKey<FormState>();
-  late final _fullName =
-      TextEditingController(text: widget.user.fullName ?? '');
+  late final _fullName = TextEditingController(
+    text: widget.user.fullName ?? '',
+  );
   late final _email = TextEditingController(text: widget.user.email);
   bool _editMode = false;
   bool _pending = false;
@@ -95,7 +96,7 @@ class _UserInformationState extends ConsumerState<_UserInformation> {
 
   void _cancel() {
     _fullName.text = widget.user.fullName ?? '';
-    _email.text = widget.user.email;
+    _email.text = widget.user.email ?? '';
     setState(() => _editMode = false);
   }
 
@@ -103,10 +104,12 @@ class _UserInformationState extends ConsumerState<_UserInformation> {
     if (_pending || !_formKey.currentState!.validate()) return;
     setState(() => _pending = true);
     try {
-      final updated = await ref.read(usersServiceProvider).updateUserMe(
+      final updated = await ref
+          .read(usersServiceProvider)
+          .updateUserMe(
             UserUpdateMe(
               fullName: _fullName.text.trim(),
-              email: _email.text.trim(),
+              email: _email.text.trim().isEmpty ? null : _email.text.trim(),
             ),
           );
       ref.read(authProvider.notifier).setUser(updated);
@@ -131,6 +134,9 @@ class _UserInformationState extends ConsumerState<_UserInformation> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const FieldLabel('Username'),
+            Text(widget.user.username),
+            const SizedBox(height: 16),
             const FieldLabel('Full name'),
             if (_editMode)
               TextFormField(
@@ -157,13 +163,16 @@ class _UserInformationState extends ConsumerState<_UserInformation> {
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.done,
-                validator: Validators.email,
+                validator: (v) =>
+                    (v?.trim().isEmpty ?? true) ? null : Validators.email(v),
                 onFieldSubmitted: (_) => _submit(),
-                decoration:
-                    const InputDecoration(hintText: 'user@example.com'),
+                decoration: const InputDecoration(hintText: 'user@example.com'),
               )
             else
-              Text(widget.user.email, style: theme.textTheme.bodyMedium),
+              Text(
+                widget.user.email ?? 'No email',
+                style: theme.textTheme.bodyMedium,
+              ),
             const SizedBox(height: 24),
             if (_editMode)
               Row(
@@ -219,17 +228,16 @@ class _ChangePasswordState extends ConsumerState<_ChangePassword> {
     if (_pending || !_formKey.currentState!.validate()) return;
     setState(() => _pending = true);
     try {
-      await ref.read(usersServiceProvider).updatePasswordMe(
+      await ref
+          .read(usersServiceProvider)
+          .updatePasswordMe(
             UpdatePassword(
               currentPassword: _current.text,
               newPassword: _newPassword.text,
             ),
           );
-      Toast.success('Password updated successfully');
-      _current.clear();
-      _newPassword.clear();
-      _confirm.clear();
-      _formKey.currentState!.reset();
+      Toast.success('Password updated. Please log in again.');
+      await ref.read(authProvider.notifier).expireSession();
     } catch (e) {
       Toast.error(extractErrorMessage(e));
     } finally {
@@ -295,15 +303,17 @@ class _DeleteAccount extends ConsumerWidget {
       children: [
         Text(
           'Delete Account',
-          style: theme.textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w600),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           'Permanently delete your data and everything associated with your '
           'account.',
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 12),
         FilledButton(
@@ -341,7 +351,7 @@ class _DeleteConfirmationDialogState
       await ref.read(usersServiceProvider).deleteUserMe();
       Toast.success('Your account has been successfully deleted');
       if (mounted) Navigator.of(context).pop();
-      await ref.read(authProvider.notifier).logout();
+      await ref.read(authProvider.notifier).expireSession();
     } catch (e) {
       Toast.error(extractErrorMessage(e));
       if (mounted) setState(() => _pending = false);

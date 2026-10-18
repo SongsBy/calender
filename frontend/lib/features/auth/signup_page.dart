@@ -21,6 +21,7 @@ class SignUpPage extends ConsumerStatefulWidget {
 class _SignUpPageState extends ConsumerState<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
   final _fullName = TextEditingController();
+  final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
@@ -29,6 +30,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   @override
   void dispose() {
     _fullName.dispose();
+    _username.dispose();
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
@@ -39,9 +41,12 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
     if (_pending || !_formKey.currentState!.validate()) return;
     setState(() => _pending = true);
     try {
-      await ref.read(authProvider.notifier).signUp(
+      await ref
+          .read(authProvider.notifier)
+          .signUp(
             UserRegister(
-              email: _email.text.trim(),
+              username: _username.text.trim(),
+              email: _email.text.trim().isEmpty ? null : _email.text.trim(),
               password: _password.text,
               fullName: _fullName.text.trim(),
             ),
@@ -75,14 +80,24 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
               decoration: const InputDecoration(hintText: 'User'),
             ),
             const SizedBox(height: 16),
-            const FieldLabel('Email'),
+            const FieldLabel('Username'),
+            TextFormField(
+              controller: _username,
+              autofillHints: const [AutofillHints.newUsername],
+              textInputAction: TextInputAction.next,
+              validator: Validators.username,
+              decoration: const InputDecoration(hintText: 'user_one'),
+            ),
+            const SizedBox(height: 16),
+            const FieldLabel('Email (optional, for password recovery)'),
             TextFormField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
               textInputAction: TextInputAction.next,
               autovalidateMode: AutovalidateMode.onUnfocus,
-              validator: Validators.email,
+              validator: (v) =>
+                  (v?.trim().isEmpty ?? true) ? null : Validators.email(v),
               decoration: const InputDecoration(hintText: 'user@example.com'),
             ),
             const SizedBox(height: 16),

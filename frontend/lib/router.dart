@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'features/admin/admin_page.dart';
+import 'features/events/events_page.dart';
+import 'features/calendars/calendars_page.dart';
 import 'features/auth/login_page.dart';
 import 'features/auth/recover_password_page.dart';
 import 'features/auth/reset_password_page.dart';
@@ -21,6 +23,7 @@ class Routes {
 
   static const dashboard = '/';
   static const items = '/items';
+  static const calendars = '/calendars';
   static const admin = '/admin';
   static const settings = '/settings';
   static const login = '/login';
@@ -75,28 +78,38 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.resetPassword,
-        builder: (context, state) => ResetPasswordPage(
-          token: state.uri.queryParameters['token'] ?? '',
-        ),
+        builder: (context, state) =>
+            ResetPasswordPage(token: state.uri.queryParameters['token'] ?? ''),
       ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(
             path: Routes.dashboard,
-            builder: (context, state) => const DashboardPage(),
+            builder: (context, state) => const AppPage(child: DashboardPage()),
+          ),
+          GoRoute(
+            path: Routes.calendars,
+            builder: (context, state) => const AppPage(child: CalendarsPage()),
+          ),
+          GoRoute(
+            path: '/calendars/:calendarId',
+            builder: (context, state) => EventsPage(
+              scrollable: true,
+              calendarId: state.pathParameters['calendarId']!,
+            ),
           ),
           GoRoute(
             path: Routes.items,
-            builder: (context, state) => const ItemsPage(),
+            builder: (context, state) => const AppPage(child: ItemsPage()),
           ),
           GoRoute(
             path: Routes.admin,
-            builder: (context, state) => const AdminPage(),
+            builder: (context, state) => const AppPage(child: AdminPage()),
           ),
           GoRoute(
             path: Routes.settings,
-            builder: (context, state) => const SettingsPage(),
+            builder: (context, state) => const AppPage(child: SettingsPage()),
           ),
         ],
       ),
