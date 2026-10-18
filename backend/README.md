@@ -64,3 +64,10 @@ uv run alembic upgrade head
 `app/email-templates/*.html`을 직접 수정합니다. 템플릿 변수는 `app/utils.py`의 `generate_*_email()`에서 넘겨줍니다.
 
 공유 캘린더 생성·초대·참여: [구현 설명과 로컬 확인 방법](docs/sharing-implementation.md).
+
+### Render 무료 인스턴스 시작 명령
+
+Docker Command에는 따옴표 없이 `bash scripts/render-start.sh`를 입력합니다.
+이 스크립트는 마이그레이션과 초기 관리자 생성을 완료한 뒤 Render의 `PORT`
+(미설정 시 10000)에서 워커 1개로 서버를 실행합니다. 준비 단계가 실패하면
+서버를 시작하지 않습니다. Health Check Path는 `/api/v1/utils/health-check/`입니다.
