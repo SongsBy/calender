@@ -69,8 +69,7 @@ class UsersService {
 
   /// GET /users/{user_id}
   Future<UserPublic> readUserById(String userId) async {
-    final response =
-        await _dio.get<Map<String, dynamic>>('$_p/users/$userId');
+    final response = await _dio.get<Map<String, dynamic>>('$_p/users/$userId');
     return UserPublic.fromJson(response.data!);
   }
 
@@ -85,8 +84,9 @@ class UsersService {
 
   /// DELETE /users/{user_id}
   Future<Message> deleteUser(String userId) async {
-    final response =
-        await _dio.delete<Map<String, dynamic>>('$_p/users/$userId');
+    final response = await _dio.delete<Map<String, dynamic>>(
+      '$_p/users/$userId',
+    );
     return Message.fromJson(response.data!);
   }
 }

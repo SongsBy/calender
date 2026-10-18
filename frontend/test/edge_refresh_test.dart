@@ -1,7 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend/shared/app_shell.dart';
+import 'package:frontend/shared/edge_refresh.dart';
+
+Widget _page(Future<void> Function() onRefresh, Widget child) => MaterialApp(
+  home: Scaffold(
+    body: EdgeRefresh(
+      onRefresh: onRefresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: ClampingScrollPhysics(),
+        ),
+        child: child,
+      ),
+    ),
+  ),
+);
 
 void main() {
   for (final up in [true, false]) {
@@ -11,17 +25,10 @@ void main() {
         var calls = 0;
         final done = Completer<void>();
         await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: AppPage(
-                onRefresh: () {
-                  calls++;
-                  return done.future;
-                },
-                child: const SizedBox(height: 1200, child: Text('일정')),
-              ),
-            ),
-          ),
+          _page(() {
+            calls++;
+            return done.future;
+          }, const SizedBox(height: 1200, child: Text('일정'))),
         );
         if (up) {
           final scroll = tester.state<ScrollableState>(
@@ -56,16 +63,9 @@ void main() {
     (tester) async {
       var calls = 0;
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AppPage(
-              onRefresh: () async {
-                calls++;
-              },
-              child: const Text('빈 일정'),
-            ),
-          ),
-        ),
+        _page(() async {
+          calls++;
+        }, const Text('빈 일정')),
       );
       await tester.drag(
         find.byType(SingleChildScrollView),

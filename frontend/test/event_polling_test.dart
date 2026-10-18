@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:frontend/features/events/events_page.dart';
+import 'package:frontend/features/events/calendar_page.dart';
 import 'package:frontend/models/event.dart';
 import 'package:frontend/models/user.dart';
 import 'package:frontend/providers/auth_provider.dart';
@@ -41,23 +41,22 @@ void main() {
             eventsServiceProvider.overrideWithValue(service),
             calendarDetailProvider.overrideWith((ref, id) async => calendar),
           ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: SingleChildScrollView(
-                child: CalendarSchedule(calendar: calendar),
-              ),
-            ),
-          ),
+          child: const MaterialApp(home: CalendarSchedule(calendar: calendar)),
         ),
       );
       await tester.pumpAndSettle();
       expect(service.reads, 1);
+      expect(find.text('방금 갱신됨'), findsOneWidget);
       service.failRead = true;
       await tester.pump(const Duration(seconds: 15));
       await tester.pumpAndSettle();
       expect(service.reads, 2);
-      expect(find.text('오늘 약속'), findsOneWidget);
-      expect(find.text('갱신 다시 시도'), findsOneWidget);
+      expect(find.text('오늘 약속'), findsWidgets);
+      expect(
+        find.text('일정을 새로 불러오지 못했어요. 마지막으로 불러온 일정을 보여드리고 있어요.'),
+        findsOneWidget,
+      );
+      expect(find.text('다시 시도'), findsOneWidget);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump(const Duration(seconds: 45));
       expect(service.reads, 2);
@@ -67,7 +66,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(service.reads, 3);
       expect(find.text('오늘 약속'), findsNothing);
-      expect(find.text('갱신 다시 시도'), findsNothing);
+      expect(find.text('다시 시도'), findsNothing);
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 30));
       expect(service.reads, 3);
@@ -75,7 +74,7 @@ void main() {
   );
 
   for (final status in [403, 404]) {
-    testWidgets('calendar $status redirects to list with message', (
+    testWidgets('calendar $status shows the deleted notice and returns home', (
       tester,
     ) async {
       var missing = false;
@@ -84,12 +83,10 @@ void main() {
         routes: [
           GoRoute(
             path: '/events',
-            builder: (_, _) => const Scaffold(
-              body: SingleChildScrollView(child: EventsPage(calendarId: 'cal')),
-            ),
+            builder: (_, _) => const CalendarPage(calendarId: 'cal'),
           ),
           GoRoute(
-            path: '/calendars',
+            path: '/',
             builder: (_, _) => const Scaffold(body: Text('목록 도착')),
           ),
         ],
@@ -120,8 +117,10 @@ void main() {
       missing = true;
       await tester.pump(const Duration(seconds: 15));
       await tester.pumpAndSettle();
+      expect(find.text('상대방이 캘린더를 삭제했어요'), findsOneWidget);
+      await tester.tap(find.text('목록으로'));
+      await tester.pumpAndSettle();
       expect(find.text('목록 도착'), findsOneWidget);
-      expect(find.text('캘린더가 삭제되었거나 접근 권한이 없습니다.'), findsOneWidget);
     });
   }
 }

@@ -2,8 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend/features/events/event_import_page.dart';
+import 'package:frontend/features/events/import_page.dart';
+import 'package:frontend/models/calendar.dart';
+import 'package:frontend/models/user.dart';
+import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/services/device_calendar_service.dart';
+import 'package:frontend/shared/ds.dart';
+
+const _calendar = SharedCalendar(
+  id: '1',
+  name: '우리의 하루',
+  timezone: 'Asia/Seoul',
+  members: [
+    CalendarMember(id: 'me', name: '민지', role: 'owner', slot: 1),
+    CalendarMember(id: 'partner', name: '준호', role: 'member', slot: 2),
+  ],
+);
+
+Widget _page() => ProviderScope(
+  overrides: [
+    currentUserProvider.overrideWithValue(const UserPublic(id: 'me')),
+  ],
+  child: const MaterialApp(
+    home: ImportPage(calendarId: '1', calendar: _calendar),
+  ),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -61,18 +84,18 @@ void main() {
           calls.add(call.method);
           return false;
         });
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
-          home: EventImportPage(calendarId: '1', zone: 'Asia/Seoul'),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_page());
     expect(calls, isEmpty);
-    await tester.tap(find.text('읽기 권한 허용하고 시작'));
+    expect(find.text('1/5 단계 · 권한'), findsOneWidget);
+    await tester.tap(find.text('권한 허용하고 계속'));
     await tester.pumpAndSettle();
     expect(calls, ['permission']);
-    expect(find.text('앱 설정 열기'), findsOneWidget);
+    expect(
+      find.text('캘린더 읽기 권한이 꺼져 있어요. 허용해야 기기 일정을 볼 수 있어요.'),
+      findsOneWidget,
+    );
+    expect(find.text('다시 요청'), findsOneWidget);
+    expect(find.text('앱 설정에서 허용하기'), findsOneWidget);
     expect(tester.takeException(), null);
   });
   testWidgets(
@@ -115,34 +138,42 @@ void main() {
             }
             throw StateError('unexpected upload or installation access');
           });
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: EventImportPage(calendarId: '1', zone: 'Asia/Seoul'),
-          ),
-        ),
-      );
-      await tester.tap(find.text('읽기 권한 허용하고 시작'));
+      await tester.pumpWidget(_page());
+      await tester.tap(find.text('권한 허용하고 계속'));
       await tester.pumpAndSettle();
+      expect(find.text('2/5 단계 · 캘린더 선택'), findsOneWidget);
+      expect(find.text('개인 캘린더'), findsOneWidget);
+      await tester.tap(find.text('다음'));
+      await tester.pumpAndSettle();
+      expect(find.text('3/5 단계 · 기간 선택'), findsOneWidget);
       await tester.tap(find.text('일정 조회'));
       await tester.pumpAndSettle();
       expect(find.text('조회 실패'), findsOneWidget);
       fail = false;
       await tester.tap(find.text('일정 조회'));
       await tester.pumpAndSettle();
+      expect(find.text('4/5 단계 · 일정 선택'), findsOneWidget);
       expect(
         tester
-            .widget<FilledButton>(find.widgetWithText(FilledButton, '0개 가져오기'))
+            .widget<DsButton>(find.widgetWithText(DsButton, '선택한 0개 가져오기'))
             .onPressed,
         null,
       );
       await tester.tap(find.text('개인 약속'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('1개 가져오기'));
-      await tester.tap(find.text('1개 가져오기'));
+      expect(find.text('1 / 100 선택'), findsOneWidget);
+      await tester.tap(find.text('선택한 1개 가져오기'));
       await tester.pumpAndSettle();
-      expect(find.text('1개 일정을 공유할까요?'), findsOneWidget);
-      await tester.tap(find.text('취소'));
+      expect(find.text('5/5 단계 · 확인'), findsOneWidget);
+      expect(find.text("이 일정 1개를 '우리의 하루'에 복사할까요?"), findsOneWidget);
+      expect(find.text('선택한 일정의 제목·시간·설명이 상대방(준호)에게 공개됩니다.'), findsOneWidget);
+      expect(
+        tester
+            .widget<DsButton>(find.widgetWithText(DsButton, '공유 캘린더에 추가'))
+            .onPressed,
+        null,
+      );
+      await tester.tap(find.text('돌아가기'));
       await tester.pumpAndSettle();
       expect(find.text('개인 약속'), findsOneWidget);
       expect(tester.takeException(), null);

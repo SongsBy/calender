@@ -18,7 +18,27 @@
             "envFile": "${workspaceFolder}/.env",
         },
         {
-            "name": "Debug Frontend: Flutter (Chrome)",
+            "name": "Flutter: Render 백엔드 (시뮬레이터/기기)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "cwd": "${workspaceFolder}/frontend",
+            "args": [
+                "--dart-define=API_URL=https://calender-g6m5.onrender.com"
+            ]
+        },
+        {
+            "name": "Flutter: 로컬 백엔드 (시뮬레이터/기기)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "cwd": "${workspaceFolder}/frontend",
+            "args": [
+                "--dart-define=API_URL=http://localhost:8000"
+            ]
+        },
+        {
+            "name": "Debug Frontend: Flutter (Chrome, 로컬 백엔드)",
             "type": "dart",
             "request": "launch",
             "program": "lib/main.dart",

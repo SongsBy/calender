@@ -70,6 +70,7 @@ def calendar_public(session: Session, calendar: Calendar) -> CalendarPublic:
         CalendarMemberPublic(
             id=user.id,
             full_name=user.full_name,
+            username=user.username,
             role="owner" if member.role == "owner" else "member",
             slot=member.slot,
         )

@@ -31,6 +31,13 @@ class EventsService {
     return result;
   }
 
+  Future<CalendarEvent> read(String calendarId, String eventId) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      '${_path(calendarId)}/$eventId',
+    );
+    return CalendarEvent.fromJson(response.data!);
+  }
+
   Future<void> save(
     String calendarId,
     EventDraft draft, {

@@ -2,18 +2,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'features/admin/admin_page.dart';
-import 'features/events/events_page.dart';
-import 'features/calendars/calendars_page.dart';
 import 'features/auth/login_page.dart';
 import 'features/auth/recover_password_page.dart';
 import 'features/auth/reset_password_page.dart';
 import 'features/auth/signup_page.dart';
-import 'features/dashboard/dashboard_page.dart';
-import 'features/items/items_page.dart';
-import 'features/settings/settings_page.dart';
+import 'features/calendars/create_calendar_page.dart';
+import 'features/calendars/invite_page.dart';
+import 'features/calendars/join_page.dart';
+import 'features/events/calendar_page.dart';
+import 'features/events/event_detail_page.dart';
+import 'features/events/import_page.dart';
+import 'features/home/home_gate.dart';
+import 'features/home/home_page.dart';
+import 'models/calendar.dart';
 import 'providers/auth_provider.dart';
-import 'shared/app_shell.dart';
 import 'shared/not_found_page.dart';
 
 /// Route paths. They match the links the backend puts in emails
@@ -21,15 +23,20 @@ import 'shared/not_found_page.dart';
 class Routes {
   Routes._();
 
-  static const dashboard = '/';
-  static const items = '/items';
+  static const home = '/';
   static const calendars = '/calendars';
-  static const admin = '/admin';
-  static const settings = '/settings';
+  static const createCalendar = '/calendars/new';
+  static const join = '/join';
   static const login = '/login';
   static const signup = '/signup';
   static const recoverPassword = '/recover-password';
   static const resetPassword = '/reset-password';
+
+  static String calendar(String id) => '/calendars/$id';
+  static String invite(String id) => '/calendars/$id/invite';
+  static String import(String id) => '/calendars/$id/import';
+  static String eventDetail(String id, String eventId) =>
+      '/calendars/$id/events/$eventId';
 
   static const publicOnly = {login, signup, recoverPassword, resetPassword};
 }
@@ -43,7 +50,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
-    initialLocation: Routes.dashboard,
+    initialLocation: Routes.home,
     refreshListenable: refresh,
     errorBuilder: (context, state) => const NotFoundPage(),
     redirect: (context, state) {
@@ -55,7 +62,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return Routes.login;
       }
       if (isLoggedIn && isPublicOnly) {
-        return Routes.dashboard;
+        return Routes.home;
       }
       if (path == Routes.resetPassword &&
           (state.uri.queryParameters['token'] ?? '').isEmpty) {
@@ -81,37 +88,44 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) =>
             ResetPasswordPage(token: state.uri.queryParameters['token'] ?? ''),
       ),
-      ShellRoute(
-        builder: (context, state, child) => AppShell(child: child),
-        routes: [
-          GoRoute(
-            path: Routes.dashboard,
-            builder: (context, state) => const AppPage(child: DashboardPage()),
-          ),
-          GoRoute(
-            path: Routes.calendars,
-            builder: (context, state) => const AppPage(child: CalendarsPage()),
-          ),
-          GoRoute(
-            path: '/calendars/:calendarId',
-            builder: (context, state) => EventsPage(
-              scrollable: true,
-              calendarId: state.pathParameters['calendarId']!,
-            ),
-          ),
-          GoRoute(
-            path: Routes.items,
-            builder: (context, state) => const AppPage(child: ItemsPage()),
-          ),
-          GoRoute(
-            path: Routes.admin,
-            builder: (context, state) => const AppPage(child: AdminPage()),
-          ),
-          GoRoute(
-            path: Routes.settings,
-            builder: (context, state) => const AppPage(child: SettingsPage()),
-          ),
-        ],
+      GoRoute(path: Routes.home, builder: (context, state) => const HomeGate()),
+      GoRoute(
+        path: Routes.calendars,
+        builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: Routes.createCalendar,
+        builder: (context, state) => const CreateCalendarPage(),
+      ),
+      GoRoute(path: Routes.join, builder: (context, state) => const JoinPage()),
+      GoRoute(
+        path: '/calendars/:calendarId',
+        builder: (context, state) =>
+            CalendarPage(calendarId: state.pathParameters['calendarId']!),
+      ),
+      GoRoute(
+        path: '/calendars/:calendarId/invite',
+        builder: (context, state) =>
+            InvitePage(calendarId: state.pathParameters['calendarId']!),
+      ),
+      GoRoute(
+        path: '/calendars/:calendarId/import',
+        builder: (context, state) => ImportPage(
+          calendarId: state.pathParameters['calendarId']!,
+          calendar: state.extra is SharedCalendar
+              ? state.extra! as SharedCalendar
+              : null,
+        ),
+      ),
+      GoRoute(
+        path: '/calendars/:calendarId/events/:eventId',
+        builder: (context, state) => EventDetailPage(
+          calendarId: state.pathParameters['calendarId']!,
+          eventId: state.pathParameters['eventId']!,
+          args: state.extra is EventDetailArgs
+              ? state.extra! as EventDetailArgs
+              : null,
+        ),
       ),
     ],
   );

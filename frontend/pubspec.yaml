@@ -1,5 +1,5 @@
 name: frontend
-description: "Flutter frontend for the Full Stack FastAPI Template."
+description: "calender - 두 사람의 공유 캘린더 (Flutter frontend)."
 publish_to: 'none'
 version: 0.1.0
 
@@ -17,6 +17,8 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_web_plugins:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   flutter_secure_storage: ^11.2.0
   timezone: ^0.11.2
 
@@ -24,9 +26,32 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/images/
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/PretendardVariable.ttf
+    - family: Yellowtail
+      fonts:
+        - asset: assets/fonts/Yellowtail-Regular.ttf
+
+# 앱 아이콘: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#FFFFFF"
+    theme_color: "#FFFFFF"
+  macos:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
 

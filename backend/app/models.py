@@ -268,6 +268,7 @@ class InvitationRateLimit(SQLModel, table=True):
 class CalendarMemberPublic(SQLModel):
     id: uuid.UUID
     full_name: str | None
+    username: str | None = None
     role: Literal["owner", "member"]
     slot: int
 

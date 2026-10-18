@@ -15,14 +15,14 @@ class ItemPublic {
   final DateTime? createdAt;
 
   factory ItemPublic.fromJson(Map<String, dynamic> json) => ItemPublic(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        description: json['description'] as String?,
-        ownerId: json['owner_id'] as String,
-        createdAt: json['created_at'] != null
-            ? DateTime.tryParse(json['created_at'] as String)
-            : null,
-      );
+    id: json['id'] as String,
+    title: json['title'] as String,
+    description: json['description'] as String?,
+    ownerId: json['owner_id'] as String,
+    createdAt: json['created_at'] != null
+        ? DateTime.tryParse(json['created_at'] as String)
+        : null,
+  );
 }
 
 /// `ItemsPublic`
@@ -33,11 +33,11 @@ class ItemsPublic {
   final int count;
 
   factory ItemsPublic.fromJson(Map<String, dynamic> json) => ItemsPublic(
-        data: (json['data'] as List)
-            .map((e) => ItemPublic.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        count: json['count'] as int,
-      );
+    data: (json['data'] as List)
+        .map((e) => ItemPublic.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    count: json['count'] as int,
+  );
 }
 
 /// `ItemCreate`
@@ -47,10 +47,7 @@ class ItemCreate {
   final String title;
   final String? description;
 
-  Map<String, dynamic> toJson() => {
-        'title': title,
-        'description': description,
-      };
+  Map<String, dynamic> toJson() => {'title': title, 'description': description};
 }
 
 /// `ItemUpdate`
@@ -61,7 +58,7 @@ class ItemUpdate {
   final String? description;
 
   Map<String, dynamic> toJson() => {
-        if (title != null) 'title': title,
-        'description': description,
-      };
+    if (title != null) 'title': title,
+    'description': description,
+  };
 }

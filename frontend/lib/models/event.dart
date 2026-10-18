@@ -27,12 +27,18 @@ class CalendarEvent {
     required this.allDay,
     required this.start,
     required this.end,
+    this.createdAt,
+    this.updatedAt,
   });
   final String id, calendarId, createdBy, title;
   final String? description;
   final bool allDay;
   // All-day dates use UTC as a date-only container; timed values are UTC instants.
   final DateTime start, end;
+  final DateTime? createdAt, updatedAt;
+
+  /// 종일 일정의 마지막 날짜 (포함). `end`는 배타적 다음 날입니다.
+  DateTime get lastDay => end.subtract(const Duration(days: 1));
   factory CalendarEvent.fromJson(Map<String, dynamic> json) => CalendarEvent(
     id: json['id'] as String,
     calendarId: json['calendar_id'] as String,
@@ -46,6 +52,12 @@ class CalendarEvent {
     end: DateTime.parse(
       json[json['all_day'] == true ? 'end_date' : 'ends_at'] as String,
     ).toUtcDate(json['all_day'] == true),
+    createdAt: json['created_at'] == null
+        ? null
+        : DateTime.tryParse(json['created_at'] as String)?.toUtc(),
+    updatedAt: json['updated_at'] == null
+        ? null
+        : DateTime.tryParse(json['updated_at'] as String)?.toUtc(),
   );
   DateTime localStart(String zone) =>
       allDay ? start : tz.TZDateTime.from(start, calendarZone(zone));

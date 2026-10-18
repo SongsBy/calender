@@ -5,21 +5,26 @@ Flutter 앱. Web / iOS / Android / macOS 지원.
 ## 요구 사항
 
 - Flutter 3.38+
-- 백엔드 실행 중 (http://localhost:8000)
+- 백엔드: 기본값은 Render에 배포된 `https://calender-g6m5.onrender.com`
+  (`lib/core/config.dart`). 무료 인스턴스라 잠들어 있으면 첫 요청이 30초 이상 걸립니다.
 
 ## 실행
 
 ```bash
 flutter pub get
 
-# 웹 (포트 5173은 백엔드 CORS 설정과 맞춰야 함)
-flutter run -d chrome --web-port 5173 --dart-define=API_URL=http://localhost:8000
+# iOS 시뮬레이터 / Android 에뮬레이터 / macOS → Render 백엔드 (옵션 없음)
+flutter run
 
-# iOS 시뮬레이터 / Android 에뮬레이터
+# 로컬 백엔드(http://localhost:8000)를 쓸 때만 주소를 덮어씀
 flutter run --dart-define=API_URL=http://localhost:8000
+
+# 웹 (포트 5173은 백엔드 CORS 설정 FRONTEND_HOST와 맞춰야 함)
+flutter run -d chrome --web-port 5173 --dart-define=API_URL=http://localhost:8000
 ```
 
-Android 에뮬레이터에서는 `http://10.0.2.2:8000`, 실기기에서는 PC의 LAN IP를 사용합니다.
+로컬 백엔드를 Android 에뮬레이터에서 쓸 때는 `http://10.0.2.2:8000`, 실기기에서는 PC의 LAN IP를 사용합니다.
+브라우저에서 Render 주소를 직접 열면 백엔드가 서빙하는 웹 빌드가 같은 origin으로 동작합니다.
 
 ## 빌드
 
@@ -38,14 +43,19 @@ Docker 빌드 시에는 백엔드 Dockerfile이 이 과정을 대신합니다.
 
 ```
 lib/
-├── main.dart, app.dart, router.dart, theme.dart
-├── core/        설정, API 클라이언트, 저장소, 토스트, 검증
+├── main.dart, app.dart, router.dart
+├── theme.dart   디자인 토큰 (색·타이포·간격·모서리) + ThemeData
+├── core/        설정, API 클라이언트, 저장소, 토스트, 한국어 날짜 포맷
 ├── models/      API 모델
-├── services/    API 호출 (login, users, items)
-├── providers/   Riverpod 상태 (auth, theme, items, users)
-├── features/    화면 (auth, dashboard, items, admin, settings)
-└── shared/      공용 위젯, 앱 셸
+├── services/    API 호출 (login, users, calendars, events, device calendar)
+├── providers/   Riverpod 상태 (auth, calendars, events)
+├── features/    화면 (auth, home, calendars, events)
+└── shared/      디자인 시스템 위젯(ds.dart), 아이콘·일러스트(SVG), 당겨서 갱신
 ```
+
+UI는 Claude Design으로 만든 "우리의 하루" 시안(앱 이름은 CC)(디자인 토큰·컴포넌트 보드)을
+그대로 옮긴 것입니다. 글꼴은 `assets/fonts/PretendardVariable.ttf`
+(SIL OFL) 하나이며, 모든 색·크기 값은 `lib/theme.dart`에 모여 있습니다.
 
 백엔드 API가 바뀌면 `models/`와 `services/`를 직접 수정합니다.
 
