@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:frontend/app.dart';
+import 'package:frontend/core/korean_holidays.dart';
 import 'package:frontend/core/storage.dart';
 import 'package:frontend/providers/app_providers.dart';
 import 'package:frontend/providers/calendars_provider.dart';
@@ -201,6 +202,98 @@ void main() {
     expect(find.byType(MonthGrid), findsOneWidget);
     expect(find.text('우리 일정'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('korean holidays are painted red in the month grid', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(411, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.create(persistSession: false);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          storageProvider.overrideWithValue(storage),
+          authProvider.overrideWith(SignedInAuth.new),
+          calendarsServiceProvider.overrideWithValue(SingleCalendar()),
+          calendarDetailProvider.overrideWith((ref, id) async => calendar),
+          eventsServiceProvider.overrideWithValue(FakeEvents()),
+        ],
+        child: const App(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(App)),
+    );
+    container.read(routerProvider).go('/calendars/cal');
+    await tester.pumpAndSettle();
+    expect(find.byType(MonthGrid), findsOneWidget);
+
+    // 오늘이 속한 달의 공휴일(없으면 다음 달로 이동하며 찾기).
+    final now = DateTime.now();
+    var cursor = DateTime.utc(now.year, now.month);
+    DateTime? holiday;
+    for (var i = 0; i < 12 && holiday == null; i++) {
+      final days = DateTime.utc(cursor.year, cursor.month + 1, 0).day;
+      for (var d = 1; d <= days; d++) {
+        final date = DateTime.utc(cursor.year, cursor.month, d);
+        if (date.weekday != DateTime.sunday && koreanHoliday(date) != null) {
+          holiday = date;
+          break;
+        }
+      }
+      if (holiday == null) {
+        await tester.tap(find.bySemanticsLabel('다음 달'));
+        await tester.pumpAndSettle();
+        cursor = DateTime.utc(cursor.year, cursor.month + 1);
+      }
+    }
+    expect(holiday, isNotNull, reason: '12달 안에 평일 공휴일이 있어야 함');
+    final cell = find.byKey(ValueKey('day-${dateText(holiday!)}'));
+    expect(cell, findsOneWidget);
+    final number = tester.widget<Text>(
+      find.descendant(of: cell, matching: find.text('${holiday.day}')),
+    );
+    expect(number.style?.color, AppColors.error);
+
+    // 평일(공휴일 아님)은 갈색 숫자.
+    DateTime? plain;
+    final days = DateTime.utc(holiday.year, holiday.month + 1, 0).day;
+    for (var d = 1; d <= days; d++) {
+      final date = DateTime.utc(holiday.year, holiday.month, d);
+      if (date.weekday != DateTime.sunday &&
+          koreanHoliday(date) == null &&
+          date != DateTime.utc(now.year, now.month, now.day)) {
+        plain = date;
+        break;
+      }
+    }
+    final plainCell = find.byKey(ValueKey('day-${dateText(plain!)}'));
+    final plainNumber = tester.widget<Text>(
+      find.descendant(of: plainCell, matching: find.text('${plain.day}')),
+    );
+    expect(plainNumber.style?.color, AppColors.brown900);
+
+    // 공휴일은 날짜 숫자 아래에 일정 띠처럼 이름이 적힌 빨간 띠로 나온다.
+    for (final name in koreanHolidays(holiday)) {
+      final bar = find.byKey(
+        ValueKey('holiday-bar-holiday-${dateText(holiday)}-$name'),
+      );
+      expect(bar, findsOneWidget);
+      final text = tester.widget<Text>(
+        find.descendant(of: bar, matching: find.text(name)),
+      );
+      expect(text.style?.color, AppColors.error);
+    }
+
+    // 공휴일은 달력 띠에만 보이고, 선택해도 하단 일정 목록에는 끼지 않는다.
+    await tester.tap(cell);
+    await tester.pumpAndSettle();
+    expect(find.text('일정 없음'), findsOneWidget);
+    expect(find.byType(EventCard), findsNothing);
   });
   testWidgets('editing title preserves original seconds and UTC instant', (
     tester,

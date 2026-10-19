@@ -9,6 +9,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../core/api_exception.dart';
 import '../../core/format.dart';
+import '../../core/korean_holidays.dart';
 import '../../models/calendar.dart';
 import '../../models/event.dart';
 import '../../providers/auth_provider.dart';
@@ -635,6 +636,32 @@ class MonthGrid extends StatefulWidget {
   @override
   State<MonthGrid> createState() => _MonthGridState();
 
+  /// 공휴일 띠에 쓰는 가짜 작성자 ID. 이 값이면 빨간 공휴일 띠로 그립니다.
+  static const holidayAuthor = 'korean-holiday';
+
+  /// [year]년 [month]월의 대한민국 공휴일을 하루짜리 종일 일정으로 만듭니다.
+  /// 서버 일정이 아니므로 목록·상세에는 쓰지 않고 달력 띠에만 씁니다.
+  static List<CalendarEvent> holidayEvents(
+    int year,
+    int month,
+    String calendarId,
+  ) {
+    final days = DateTime.utc(year, month + 1, 0).day;
+    return [
+      for (var d = 1; d <= days; d++)
+        for (final name in koreanHolidays(DateTime.utc(year, month, d)))
+          CalendarEvent(
+            id: 'holiday-${dateText(DateTime.utc(year, month, d))}-$name',
+            calendarId: calendarId,
+            createdBy: holidayAuthor,
+            title: name,
+            allDay: true,
+            start: DateTime.utc(year, month, d),
+            end: DateTime.utc(year, month, d + 1),
+          ),
+    ];
+  }
+
   /// 일정이 차지하는 날짜 범위 (포함, UTC 날짜 컨테이너).
   static (DateTime, DateTime) dayRange(CalendarEvent e, String zone) {
     if (e.allDay) return (e.start, e.lastDay);
@@ -745,12 +772,20 @@ class _MonthGridState extends State<MonthGrid> {
     final zone = widget.calendar.timezone;
 
     // 하루짜리든 여러 날이든 모든 일정을 제목 띠로 보여 줍니다.
+    // 공휴일도 날짜 아래에 빨간 띠로 함께 그립니다.
     final spanning = <CalendarEvent, (DateTime, DateTime)>{
+      for (final e in MonthGrid.holidayEvents(
+        selected.year,
+        selected.month,
+        widget.calendar.id,
+      ))
+        e: (e.start, e.lastDay),
       for (final e in widget.events) e: MonthGrid.dayRange(e, zone),
     };
-    // 긴 일정이 먼저 윗줄을 차지하도록 정렬합니다.
+    // 공휴일이 맨 윗줄, 그다음 긴 일정이 윗줄을 차지하도록 정렬합니다.
     final ordered = spanning.keys.toList()
       ..sort((a, b) {
+        if (a.isHoliday != b.isHoliday) return a.isHoliday ? -1 : 1;
         final ra = spanning[a]!, rb = spanning[b]!;
         final c = ra.$1.compareTo(rb.$1);
         if (c != 0) return c;
@@ -831,6 +866,7 @@ class _MonthGridState extends State<MonthGrid> {
           continuesBefore: from != start,
           continuesAfter: to != end,
           isMine: e.createdBy == widget.userId,
+          isHoliday: e.isHoliday,
         ),
       );
     }
@@ -904,6 +940,7 @@ class _MonthGridState extends State<MonthGrid> {
                           final date = _dateOf(day);
                           var count = 0;
                           for (final s in week.segments) {
+                            if (s.isHoliday) continue;
                             if (col >= s.startCol && col <= s.endCol) count++;
                           }
                           return _DayCell(
@@ -912,6 +949,7 @@ class _MonthGridState extends State<MonthGrid> {
                             isToday: date == widget.today,
                             isSelected: date == widget.selected,
                             isSunday: col == 0,
+                            holiday: koreanHoliday(date),
                             eventCount: count + week.overflow[col],
                             onTap: () => widget.onSelect(date),
                           );
@@ -970,6 +1008,7 @@ class _BarSegment {
     required this.continuesBefore,
     required this.continuesAfter,
     required this.isMine,
+    this.isHoliday = false,
   });
   final CalendarEvent event;
   final int lane;
@@ -978,9 +1017,14 @@ class _BarSegment {
   final bool continuesBefore;
   final bool continuesAfter;
   final bool isMine;
+  final bool isHoliday;
 }
 
-/// 형광펜 띠 — 나는 버터, 상대는 핑크. 시작·끝 쪽만 둥글게.
+extension on CalendarEvent {
+  bool get isHoliday => createdBy == MonthGrid.holidayAuthor;
+}
+
+/// 형광펜 띠 — 나는 버터, 상대는 핑크, 공휴일은 빨강. 시작·끝 쪽만 둥글게.
 class _EventBar extends StatelessWidget {
   const _EventBar({required this.segment});
   final _BarSegment segment;
@@ -988,15 +1032,23 @@ class _EventBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const r = Radius.circular(5);
+    final (Color bg, Color fg) = segment.isHoliday
+        ? (AppColors.error.withValues(alpha: .16), AppColors.error)
+        : segment.isMine
+        ? (AppColors.butter.withValues(alpha: .55), AppColors.onButterContainer)
+        : (AppColors.pink.withValues(alpha: .75), AppColors.onPinkContainer);
     return Semantics(
-      label: '${segment.event.title}, 여러 날 일정',
+      label: segment.isHoliday
+          ? '${segment.event.title}, 공휴일'
+          : '${segment.event.title}, 여러 날 일정',
       child: Container(
+        key: segment.isHoliday
+            ? ValueKey('holiday-bar-${segment.event.id}')
+            : null,
         padding: const EdgeInsets.symmetric(horizontal: 4),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
-          color: segment.isMine
-              ? AppColors.butter.withValues(alpha: .55)
-              : AppColors.pink.withValues(alpha: .75),
+          color: bg,
           borderRadius: BorderRadius.horizontal(
             left: segment.continuesBefore ? Radius.zero : r,
             right: segment.continuesAfter ? Radius.zero : r,
@@ -1007,14 +1059,7 @@ class _EventBar extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           softWrap: false,
-          style: ds(
-            11,
-            weight: 600,
-            height: 1,
-            color: segment.isMine
-                ? AppColors.onButterContainer
-                : AppColors.onPinkContainer,
-          ),
+          style: ds(11, weight: 600, height: 1, color: fg),
         ),
       ),
     );
@@ -1028,26 +1073,32 @@ class _DayCell extends StatelessWidget {
     required this.isToday,
     required this.isSelected,
     required this.isSunday,
+    required this.holiday,
     required this.eventCount,
     required this.onTap,
   });
   final DateTime date;
   final double height;
   final bool isToday, isSelected, isSunday;
+
+  /// 대한민국 공휴일 이름. 공휴일이면 일요일처럼 숫자를 빨간색으로 보여 줍니다.
+  final String? holiday;
   final int eventCount;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final who = eventCount > 0 ? ', 일정 $eventCount개' : '';
+    final isRedDay = isSunday || holiday != null;
     final numberColor = isSelected
         ? AppColors.cream
-        : isSunday
+        : isRedDay
         ? AppColors.error
         : AppColors.brown900;
     return Semantics(
       label:
-          '${monthDay(date)}${isToday ? ', 오늘' : ''}${isSelected ? ', 선택됨' : ''}$who',
+          '${monthDay(date)}${holiday == null ? '' : ', $holiday'}'
+          '${isToday ? ', 오늘' : ''}${isSelected ? ', 선택됨' : ''}$who',
       selected: isSelected,
       button: true,
       child: InkWell(
